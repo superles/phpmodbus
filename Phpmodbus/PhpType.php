@@ -192,18 +192,42 @@ class PhpType {
      * checkData
      *
      * Check if the data variable is array, and check if the values are numeric
+     * Returns array with exactly 2 or 4 byte elements or throws exception
      *
      * @param int $data
-     * @return int
+     * @param int $offset
+     * @return array
      */
-    private static function checkData($data) {
+     static function checkData($data, $offset=FALSE) {
         // Check the data
+        // If $offset===FALSE, $data must be array of exactly 2 or 4 bytes
+        // If $offset >= 0, $data must be array of exactly $offset+2 or $offset+4 bytes, or >$offset+4 bytes in length
+        // $n is the number of "usable" bytes in $data starting at the offset
+        $n = is_array($data) ? count($data) : 0;
+        // If $offset defined, $n>4 is allowed. Set $n=min($n,4) here so it doesn't trigger >4 error later
+        if ($offset !== FALSE) $n = min($n,4);  
+        if (($n <> 2) && ($n <> 4)) {
+            throw new Exception('The input data should be an array of 2 or 4 bytes.');
+        }
+        
+        $res = array();
+        if ($offset===FALSE) $offset=0;
+        if ($offset % 4) throw new Exception('Offset must be a multiple of 4.');
+
+        for ($i=0; $i<$n; $i++) {
+            $j =@ $data[$offset+$i];
+            if ($j === NULL) throw new Exception('Array keys are not indexed by 0,1,2 and 3');
+            if (!is_integer($j) || ($j<0) || ($j>255)) throw new Exception('Data are not integers in range 0-255');
+            $res[$i] = $j;
+        }
+        return $res;
+/*
         if (!is_array($data) ||
-                count($data)<2 ||
+                count($data)<($ofs+2) ||
                 count($data)>4 ||
                 count($data)==3) {
             throw new Exception('The input data should be an array of 2 or 4 bytes.');
-        }
+        }   
         // Fill the rest of array by zeroes
         if (count($data) == 2) {
             $data[2] = 0;
@@ -218,6 +242,7 @@ class PhpType {
         }
 
         return $data;
+        */
     }
 
     /**
