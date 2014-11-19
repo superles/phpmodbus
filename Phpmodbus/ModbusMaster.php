@@ -624,11 +624,13 @@ class ModbusMaster {
    *
    * @param int $unitId usually ID of Modbus device 
    * @param int $reference Reference in the device memory (e.g. in device WAGO 750-841, memory MW0 starts at address 12288)
-   * @param array $data value to be written (TRUE|FALSE).
+   * @param int $data value to be written (TRUE|FALSE).
    * @return bool Success flag
    */       
   function writeSingleCoil($unitId, $reference, $data){
     $this->status .= "writeSingleCoil: START\n";
+    // Compatibility: Previous version accepted $data as array when only first array value was used
+    if (is_array($data)) $data = reset($data);
     // connect
     $this->connect();
     // send FC5    
@@ -655,11 +657,10 @@ class ModbusMaster {
    * @param int $unitId
    * @param int $reference
    * @param array $data
-   * @param array $dataTypes
    * @return bool
    */
-  function fc5($unitId, $reference, $data, $dataTypes){    
-    return $this->writeSingleCoil($unitId, $reference, $data, $dataTypes);
+  function fc5($unitId, $reference, $data){    
+    return $this->writeSingleCoil($unitId, $reference, $data);
   }
 
 
@@ -670,22 +671,13 @@ class ModbusMaster {
    *
    * @param int $unitId
    * @param int $reference
-   * @param array $data
-   * @param array $dataTypes
+   * @param int $data
    * @return string
    */
   private function writeSingleCoilPacketBuilder($unitId, $reference, $data){
-    $dataLen = 0;
     // build data section
-    $buffer1 = "";
-    foreach($data as $key=>$dataitem) {
-      if($dataitem == TRUE){
-       $buffer1 = iecType::iecINT(0xFF00);
-      } else {
-       $buffer1 = iecType::iecINT(0x0000);
-      };
-    };
-    $dataLen += 2;
+    $buffer1 = $data ? iecType::iecINT(0xFF00): iecType::iecINT(0x0000);
+    $dataLen = 2;
     // build body
     $buffer2 = "";
     $buffer2 .= iecType::iecBYTE(5);             // FC5 = 5(0x05)
@@ -695,7 +687,7 @@ class ModbusMaster {
     $buffer3 = '';
     $buffer3 .= iecType::iecINT(rand(0,65000));   // transaction ID    
     $buffer3 .= iecType::iecINT(0);               // protocol ID    
-    $buffer3 .= iecType::iecINT($dataLen + 1);    // lenght    
+    $buffer3 .= iecType::iecINT($dataLen + 1);    // length
     $buffer3 .= iecType::iecBYTE($unitId);        //unit ID    
     
     // return packet string
